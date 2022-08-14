@@ -1,8 +1,8 @@
 # Usage :: Manually mount
-# `/media/pawel/disk12T/FaceAnalysis/fm_annot/img/` to `./mnt/`
+# `/media/pawel/disk12T/FaceAnalysis/fm_annot/img/` to `./data/mnt/`
 # with the shell command
 #
-#   `sshfs jinchengguu@129.49.109.97:/media/pawel/disk12T/ ./mnt` and run
+#   `sshfs jinchengguu@129.49.109.97:/media/pawel/disk12T/ ./data/mnt` and run
 #
 # the following code. The end result is asymmetry(1).
 
@@ -23,7 +23,7 @@ import warnings
 def profile_pawel_orig_example ():
     '''Returns the profile for pawel original examples.'''
     # Aux variables.
-    directory = "./mnt/FaceAnalysis/fm_annot/img/disp/"
+    directory = "./data/mnt/FaceAnalysis/fm_annot/img/disp/"
     filename_fmt = "disp_frame{frame}_pointf_ref"
     id_min, id_max = 0, 673
     frame_min, frame_max = 60, 1320
