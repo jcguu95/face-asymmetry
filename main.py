@@ -1,5 +1,5 @@
 # Usage :: Manually mount
-# `/media/pawel/disk12T/FaceAnalysis/fm_annot/img/` to `./data/mnt/`
+#   `/media/pawel/disk12T/FaceAnalysis/fm_annot/img/` to `./data/mnt/`
 # with the shell command
 #
 #   `sshfs jinchengguu@129.49.109.97:/media/pawel/disk12T/ ./data/mnt` and run
@@ -10,8 +10,10 @@ import numpy as np
 import functools
 import warnings
 
+import profile
+
 ### User Configuration
-###
+
 ### Set the global variable CURRENT_PROFILE before running the
 ### code. This tells the program where to look for data, and what
 ### kinds of data to expect.
@@ -19,24 +21,11 @@ import warnings
 ### For performance issue, we cache some functions in this
 ### program. It is safer to reload everything if you want to
 ### switch profile.
-
-def profile_pawel_orig_example ():
-    '''Returns the profile for pawel original examples.'''
-    # Aux variables.
-    directory = "./data/mnt/FaceAnalysis/fm_annot/img/disp/"
-    filename_fmt = "disp_frame{frame}_pointf_ref"
-    id_min, id_max = 0, 673
-    frame_min, frame_max = 60, 1320
-    #
-    profile = \
-      {'name'    : "Pawel original examples.",
-       'doc'     : "The very first example we used for analyzing asymmetry with the current code.",
-       'get_file': lambda frame: directory+filename_fmt.format(frame = frame),
-       'ids'     : range(id_min,id_max),
-       'frames'  : range(frame_min,frame_max,10)}
-    return profile
-
-CURRENT_PROFILE = profile_pawel_orig_example()
+#
+#CURRENT_PROFILE = profile.pawel_orig_example()
+#CURRENT_PROFILE = profile.ellison_1()
+#CURRENT_PROFILE = profile.ellison_2()
+CURRENT_PROFILE = profile.ellison_3()
 
 ### Code Starts Here
 
