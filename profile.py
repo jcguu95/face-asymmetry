@@ -35,7 +35,7 @@ def ellison_1 ():
                     compare with Ellison 2 and 3.",
        'get_file': lambda frame: directory+filename_fmt.format(frame = frame),
        'ids'     : range(id_min,id_max),
-       'frames'  : range(frame_min,frame_max,1)}
+       'frames'  : range(frame_min,frame_max+1,1)}
     return profile
 
 def ellison_2 ():
@@ -53,7 +53,7 @@ def ellison_2 ():
                     compare with Ellison 1 and 3.",
        'get_file': lambda frame: directory+filename_fmt.format(frame = frame),
        'ids'     : range(id_min,id_max),
-       'frames'  : range(frame_min,frame_max,1)}
+       'frames'  : range(frame_min,frame_max+1,1)}
     return profile
 
 def ellison_3 ():
@@ -69,5 +69,5 @@ def ellison_3 ():
        'doc'     : "data for Ellison 3",
        'get_file': lambda frame: directory+filename_fmt.format(frame = frame),
        'ids'     : range(id_min,id_max),
-       'frames'  : range(frame_min,frame_max,1)}
+       'frames'  : range(frame_min,frame_max+1,1)}
     return profile

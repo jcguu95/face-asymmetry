@@ -6,11 +6,17 @@
 #
 # the following code. The end result is asymmetry(1).
 
+# global modules
+import math
+import pandas as pd
 import numpy as np
 import functools
 import warnings
+from compose import compose
 
+# local modules
 import profile
+import utils as u
 
 ### User Configuration
 
@@ -21,11 +27,11 @@ import profile
 ### For performance issue, we cache some functions in this
 ### program. It is safer to reload everything if you want to
 ### switch profile.
-#
+
 #CURRENT_PROFILE = profile.pawel_orig_example()
-#CURRENT_PROFILE = profile.ellison_1()
+CURRENT_PROFILE = profile.ellison_1()
 #CURRENT_PROFILE = profile.ellison_2()
-CURRENT_PROFILE = profile.ellison_3()
+#CURRENT_PROFILE = profile.ellison_3()
 
 ### Code Starts Here
 
@@ -207,37 +213,40 @@ for frame in frames():
     VECTOR_LEFT.append(dxdys_left(frame))
     VECTOR_RIGHT.append(dxdys_right(frame))
 
-def distance (array_floats):
-    '''Euclidian distance.'''
-    result = 0
-    for float in array_floats:
-        result += float**2
-    return result**(1/2)
-
-assert(distance([3,4])==5.0)
-
-def asymmetry (n):
-    result = 0
+def asymmetry (N):
+    import json
+    print("Analyzing asymmetry for profile:\n.")
+    print(json.dumps(CURRENT_PROFILE, indent=2, default=str))
     # Excellent tutorial for PCA in python:
     # https://jakevdp.github.io/PythonDataScienceHandbook/05.09-principal-component-analysis.html
     from sklearn.decomposition import PCA
-    pca = PCA(n_components=n)  # get n principle components
+    pca = PCA(n_components=N)  # get N principle components
+    #
     pca.fit(VECTOR_LEFT)       # ~130 vectors, each having ~600 coordinates.
-    left_pca = pca.components_ # get principle components
-    left_pca_variance = pca.explained_variance_
-    print("left variance: %s" % left_pca_variance)
-    pca.fit(VECTOR_RIGHT)
-    right_pca = pca.components_
-    right_pca_variance = pca.explained_variance_
-    print("right variance: %s" % right_pca_variance)
-    # Asymmetry is the final thing we want!
-    for k in range(n):
-        result += distance(left_pca[k] - right_pca[k])
-    result = result / n
-    print("Rate of asymmetry is %.10f." % result)
+    left_normalized_components = pca.components_ # get principle components
+    left_eigenvalues = list(map(math.sqrt, pca.explained_variance_))
+    left_components = list(map(u.scalar_mul, left_eigenvalues, left_normalized_components))
+    #
+    pca.fit(VECTOR_RIGHT)       # ~130 vectors, each having ~600 coordinates.
+    right_normalized_components = pca.components_ # get principle components
+    right_eigenvalues = list(map(math.sqrt, pca.explained_variance_))
+    right_components = list(map(u.scalar_mul, right_eigenvalues, right_normalized_components))
+    #
+    angle_diffs = list(map(u.angle_diff, left_components, right_components))
+    distances   = list(map(compose(u.distance, u.vect_minus), left_components, right_components))
+    length_ratios = list(map((lambda x,y: x/y), left_eigenvalues, right_eigenvalues))
+    df = pd.DataFrame([left_eigenvalues, right_eigenvalues, angle_diffs, distances, length_ratios], \
+                      index = ['left eigenvalues', 'right eigenvalues', \
+                               'angle difference', 'distance', 'length ratio']).transpose()
+    print(df)
+    result = 0
+    for k in range(N):
+        result += (left_eigenvalues[k]+right_eigenvalues[k])/2 * distances[k]
+    result = result / (N * (left_eigenvalues[0]+right_eigenvalues[0])/2)
+    print("Rate of asymmetry is %.5f." % result)
     return result
 
-# TODO time it
+asymmetry(len(CURRENT_PROFILE['frames']))
 
 # Note: There's no natural cut-off that dictates if an asymmetry
 # value is too high or not. We need to compare among different
