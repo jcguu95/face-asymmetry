@@ -56,6 +56,11 @@ def y_mean ():
         result += loc[1]/len(data.CURRENT_PROFILE["non_null_ids"])
     return result
 
+# TODO There's a better way to compute mirror candidates. This is
+# the matching problem which is famously solved by the Hungarian
+# algorithm. It is faster, more robust, and more general than the
+# current method. Implement it in the future. There are python
+# packages out there for this.
 def mirror_candidates (id):
     '''Returns the id mirrored along the central x-axis. This
     function should square to identity. (Caveat: But it doesn't!)'''
