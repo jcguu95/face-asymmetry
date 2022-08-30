@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 import warnings
 from compose import compose
-
+# local modules
 import utils as u
 import data
 
@@ -34,33 +34,37 @@ def location (id):
     else:
         warnings.warn("id:{id} has more than one location.".format(id=id))
 
-NULL_IDS = []
-NON_NULL_IDS = []
+data.CURRENT_PROFILE["null_ids"] = []
+data.CURRENT_PROFILE["non_null_ids"] = []
 for id in data.ids():
     if (location(id)) is np.nan:
-        NULL_IDS.append(id)
+        data.CURRENT_PROFILE["null_ids"].append(id)
     else:
-        NON_NULL_IDS.append(id)
-
-# >>> NULL_IDS = [2, 17, 30, 126, 128, 194, 201, 202, 206, 207,
-#             216, 217, 218, 233, 276, 307, 308, 315, 316, 317,
-#             323, 325, 326, 373, 398, 476, 483, 492, 604, 605,
-#             606, 607, 608, 610]
-#
-# >>> len(NULL_IDS) = 34
+        data.CURRENT_PROFILE["non_null_ids"].append(id)
+# NULL_IDS = []
+# NON_NULL_IDS = []
+# for id in data.ids():
+#     if (location(id)) is np.nan:
+#         NULL_IDS.append(id)
+#     else:
+#         NON_NULL_IDS.append(id)
 
 def x_mean ():
     result = 0
-    for id in NON_NULL_IDS:
+    #for id in NON_NULL_IDS:
+    for id in data.CURRENT_PROFILE["non_null_ids"]:
         loc = location(id)
-        result += loc[0]/len(NON_NULL_IDS)
+        #result += loc[0]/len(NON_NULL_IDS)
+        result += loc[0]/len(data.CURRENT_PROFILE["non_null_ids"])
     return result
 
 def y_mean ():
     result = 0
-    for id in NON_NULL_IDS:
+    #for id in NON_NULL_IDS:
+    for id in data.CURRENT_PROFILE["non_null_ids"]:
         loc = location(id)
-        result += loc[1]/len(NON_NULL_IDS)
+        #result += loc[1]/len(NON_NULL_IDS)
+        result += loc[1]/len(data.CURRENT_PROFILE["non_null_ids"])
     return result
 
 def mirror_candidates (id):
@@ -72,7 +76,8 @@ def mirror_candidates (id):
     def sqr_dist_to_mirror_point (id):
        (a, b) = location(id)
        return (a - mirror_point[0])**2 + (b - mirror_point[1])**2
-    tmp_IDS = list(NON_NULL_IDS)
+    #tmp_IDS = list(NON_NULL_IDS)
+    tmp_IDS = list(data.CURRENT_PROFILE["non_null_ids"])
     tmp_IDS.sort(key=sqr_dist_to_mirror_point)
     return tmp_IDS
 
@@ -93,37 +98,56 @@ def stability (id):
 # idempotent dictionary adhocally mirror_dict[].
 #
 ## Initialization
-MIRROR_DICT = {}
-for id in NON_NULL_IDS:
-    MIRROR_DICT[id] = ''
+#MIRROR_DICT = {}
+data.CURRENT_PROFILE["mirror_dict"] = {}
+#for id in NON_NULL_IDS:
+for id in data.CURRENT_PROFILE["non_null_ids"]:
+    #MIRROR_DICT[id] = ''
+    data.CURRENT_PROFILE["mirror_dict"][id] = ''
 
 ## Popularization.
-for id in NON_NULL_IDS:
-    if MIRROR_DICT[id] == '':
+#for id in NON_NULL_IDS:
+for id in data.CURRENT_PROFILE["non_null_ids"]:
+    #if MIRROR_DICT[id] == '':
+    if data.CURRENT_PROFILE["mirror_dict"][id] == '':
         cands = mirror_candidates(id)
-        for k in range(len(NON_NULL_IDS)):
-            if MIRROR_DICT[cands[k]] == '':
-                MIRROR_DICT[id] = cands[k]
-                MIRROR_DICT[cands[k]] = id
+        #for k in range(len(NON_NULL_IDS)):
+        for k in range(len(data.CURRENT_PROFILE["non_null_ids"])):
+            # if MIRROR_DICT[cands[k]] == '':
+            #     MIRROR_DICT[id] = cands[k]
+            #     MIRROR_DICT[cands[k]] = id
+            #     break
+            if data.CURRENT_PROFILE["mirror_dict"][cands[k]] == '':
+                data.CURRENT_PROFILE["mirror_dict"][id] = cands[k]
+                data.CURRENT_PROFILE["mirror_dict"][cands[k]] = id
                 break
 
-LEFT_IDS = []
-RIGHT_IDS = []
-for id in NON_NULL_IDS:
+#LEFT_IDS = []
+#RIGHT_IDS = []
+data.CURRENT_PROFILE['left_ids'] = []
+data.CURRENT_PROFILE['right_ids'] = []
+#for id in NON_NULL_IDS:
+for id in data.CURRENT_PROFILE["non_null_ids"]:
     if location(id)[0] <= x_mean():
-        LEFT_IDS.append(id)
-        RIGHT_IDS.append(MIRROR_DICT[id])
+        #LEFT_IDS.append(id)
+        data.CURRENT_PROFILE['left_ids'].append(id)
+        #RIGHT_IDS.append(MIRROR_DICT[id])
+        data.CURRENT_PROFILE['right_ids'].append(data.CURRENT_PROFILE["mirror_dict"][id])
 
-assert(len(LEFT_IDS)==len(RIGHT_IDS))
+#assert(len(LEFT_IDS)==len(RIGHT_IDS))
+assert(len(data.CURRENT_PROFILE['left_ids'])==len(data.CURRENT_PROFILE['right_ids']))
 
-for kk in range(len(LEFT_IDS)):
+#for kk in range(len(LEFT_IDS)):
+for kk in range(len(data.CURRENT_PROFILE['left_ids'])):
     # Make sure that the order in LEFT_IDS and RIGHT_IDS respect
     # MIRROR_DICT[_].
-    assert(MIRROR_DICT[LEFT_IDS[kk]] == RIGHT_IDS[kk])
+    #assert(MIRROR_DICT[LEFT_IDS[kk]] == RIGHT_IDS[kk])
+    assert(data.CURRENT_PROFILE["mirror_dict"][data.CURRENT_PROFILE['left_ids'][kk]] == data.CURRENT_PROFILE['right_ids'][kk])
 
 def dxdys_left (frame):
     result = []
-    for id in LEFT_IDS:
+    #for id in LEFT_IDS:
+    for id in data.CURRENT_PROFILE['left_ids']:
         entry = data.data(frame=frame, id=id)
         if entry is np.nan:
             # If `id` is missing from `frame`, assume (dx,dy)=(0,0).
@@ -136,7 +160,8 @@ def dxdys_left (frame):
 
 def dxdys_right (frame):
     result = []
-    for id in RIGHT_IDS:
+    #for id in RIGHT_IDS:
+    for id in data.CURRENT_PROFILE['right_ids']:
         entry = data.data(frame=frame, id=id)
         if entry is np.nan:
             # If `id` is missing from `frame`, assume (dx,dy)=(0,0).
@@ -147,10 +172,13 @@ def dxdys_right (frame):
             result.append(entry['dy'])
     return result
 
-VECTORS_LEFT, VECTORS_RIGHT = [], []
+#VECTORS_LEFT, VECTORS_RIGHT = [], []
+data.CURRENT_PROFILE['vectors_left'], data.CURRENT_PROFILE['vectors_right'] = [], []
 for frame in data.frames():
-    VECTORS_LEFT.append(dxdys_left(frame))
-    VECTORS_RIGHT.append(dxdys_right(frame))
+    #VECTORS_LEFT.append(dxdys_left(frame))
+    #VECTORS_RIGHT.append(dxdys_right(frame))
+    data.CURRENT_PROFILE['vectors_left'].append(dxdys_left(frame))
+    data.CURRENT_PROFILE['vectors_right'].append(dxdys_right(frame))
 
 def asymmetry (vectors_left, vectors_right):
     assert len(vectors_left)==len(vectors_right)
@@ -158,7 +186,10 @@ def asymmetry (vectors_left, vectors_right):
     #
     import json
     print("Analyzing asymmetry for profile:\n.")
-    print(json.dumps(data.CURRENT_PROFILE, indent=2, default=str))
+    print(json.dumps(data.CURRENT_PROFILE["name"], indent=2, default=str))
+    print(json.dumps(data.CURRENT_PROFILE["doc"], indent=2, default=str))
+    print(json.dumps(data.CURRENT_PROFILE["ids"], indent=2, default=str))
+    print(json.dumps(data.CURRENT_PROFILE["frames"], indent=2, default=str))
     # Excellent tutorial for PCA in python:
     # https://jakevdp.github.io/PythonDataScienceHandbook/05.09-principal-component-analysis.html
     from sklearn.decomposition import PCA
@@ -188,7 +219,8 @@ def asymmetry (vectors_left, vectors_right):
     print("Rate of asymmetry is %.5f." % result)
     return result
 
-asymmetry(VECTORS_LEFT, VECTORS_RIGHT)
+asymmetry(data.CURRENT_PROFILE['vectors_left'], \
+          data.CURRENT_PROFILE['vectors_right'])
 
 # Note: There's no natural cut-off that dictates if an asymmetry
 # value is too high or not. We need to compare among different
