@@ -147,26 +147,26 @@ def dxdys_right (frame):
             result.append(entry['dy'])
     return result
 
-VECTOR_LEFT, VECTOR_RIGHT = [], []
+VECTORS_LEFT, VECTORS_RIGHT = [], []
 for frame in data.frames():
-    VECTOR_LEFT.append(dxdys_left(frame))
-    VECTOR_RIGHT.append(dxdys_right(frame))
+    VECTORS_LEFT.append(dxdys_left(frame))
+    VECTORS_RIGHT.append(dxdys_right(frame))
 
-def asymmetry (N):
+def asymmetry (n_components):
     import json
     print("Analyzing asymmetry for profile:\n.")
     print(json.dumps(data.CURRENT_PROFILE, indent=2, default=str))
     # Excellent tutorial for PCA in python:
     # https://jakevdp.github.io/PythonDataScienceHandbook/05.09-principal-component-analysis.html
     from sklearn.decomposition import PCA
-    pca = PCA(n_components=N)  # get N principle components
+    pca = PCA(n_components=n_components)  # get n_components principle components
     #
-    pca.fit(VECTOR_LEFT)       # ~130 vectors, each having ~600 coordinates.
+    pca.fit(VECTORS_LEFT)       # ~130 vectors, each having ~600 coordinates.
     left_normalized_components = pca.components_ # get principle components
     left_eigenvalues = list(map(math.sqrt, pca.explained_variance_))
     left_components = list(map(u.scalar_mul, left_eigenvalues, left_normalized_components))
     #
-    pca.fit(VECTOR_RIGHT)       # ~130 vectors, each having ~600 coordinates.
+    pca.fit(VECTORS_RIGHT)       # ~130 vectors, each having ~600 coordinates.
     right_normalized_components = pca.components_ # get principle components
     right_eigenvalues = list(map(math.sqrt, pca.explained_variance_))
     right_components = list(map(u.scalar_mul, right_eigenvalues, right_normalized_components))
@@ -179,9 +179,9 @@ def asymmetry (N):
                                'angle difference', 'distance', 'length ratio']).transpose()
     print(df)
     result = 0
-    for k in range(N):
+    for k in range(n_components):
         result += (left_eigenvalues[k]+right_eigenvalues[k])/2 * distances[k]
-    result = result / (N * (left_eigenvalues[0]+right_eigenvalues[0])/2)
+    result = result / (n_components * (left_eigenvalues[0]+right_eigenvalues[0])/2)
     print("Rate of asymmetry is %.5f." % result)
     return result
 
