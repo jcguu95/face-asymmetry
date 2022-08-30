@@ -135,7 +135,8 @@ for id in data.CURRENT_PROFILE["non_null_ids"]:
         data.CURRENT_PROFILE['right_ids'].append(data.CURRENT_PROFILE["mirror_dict"][id])
 
 #assert(len(LEFT_IDS)==len(RIGHT_IDS))
-assert(len(data.CURRENT_PROFILE['left_ids'])==len(data.CURRENT_PROFILE['right_ids']))
+assert(len(data.CURRENT_PROFILE['left_ids']) == \
+       len(data.CURRENT_PROFILE['right_ids']))
 
 #for kk in range(len(LEFT_IDS)):
 for kk in range(len(data.CURRENT_PROFILE['left_ids'])):

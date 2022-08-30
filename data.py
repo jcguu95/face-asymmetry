@@ -17,8 +17,8 @@ import profile
 
 #CURRENT_PROFILE = profile.pawel_orig_example()
 #CURRENT_PROFILE = profile.ellison_1()
-#CURRENT_PROFILE = profile.ellison_2()
-CURRENT_PROFILE = profile.ellison_3()
+CURRENT_PROFILE = profile.ellison_2()
+#CURRENT_PROFILE = profile.ellison_3()
 
 def get_file (frame):
     return CURRENT_PROFILE['get_file'](frame)
