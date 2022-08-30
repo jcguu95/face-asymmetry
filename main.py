@@ -2,85 +2,24 @@
 #   `/media/pawel/disk12T/FaceAnalysis/fm_annot/img/` to `./data/mnt/`
 # with the shell command
 #
-#   `sshfs jinchengguu@129.49.109.97:/media/pawel/disk12T/ ./data/mnt` and run
+#   sshfs jinchengguu@129.49.109.97:/media/pawel/disk12T/ ./data/mnt
 #
-# the following code. The end result is asymmetry(1).
+# and run the following code. The end result is asymmetry(1).
 
 # global modules
 import math
 import pandas as pd
 import numpy as np
-import functools
 import warnings
 from compose import compose
 
-# local modules
-import profile
 import utils as u
-
-### User Configuration
-
-### Set the global variable CURRENT_PROFILE before running the
-### code. This tells the program where to look for data, and what
-### kinds of data to expect.
-###
-### For performance issue, we cache some functions in this
-### program. It is safer to reload everything if you want to
-### switch profile.
-
-#CURRENT_PROFILE = profile.pawel_orig_example()
-CURRENT_PROFILE = profile.ellison_1()
-#CURRENT_PROFILE = profile.ellison_2()
-#CURRENT_PROFILE = profile.ellison_3()
-
-### Code Starts Here
-
-def get_file (frame):
-    return CURRENT_PROFILE['get_file'](frame)
-
-def ids ():
-    return CURRENT_PROFILE['ids']
-
-def frames ():
-    return CURRENT_PROFILE['frames']
-
-@functools.cache
-def content (frame):
-    result = {}
-    input = np.load(get_file(frame), allow_pickle=True)
-    # change the following if data format changes
-    result['idx'] = input['idx']
-    result['pointi'] = input['pointi']
-    result['pointf'] = input['pointf']
-    # Check sanity
-    assert(len(result['idx']) == len(result['pointi']) == len(result['pointf']))
-    return result
-
-@functools.cache
-def extract (frame):
-    result = {}
-    for k in range(len(content(frame)['idx'])):
-        (x0,y0) = (content(frame)['pointi'][k][0], content(frame)['pointi'][k][1])
-        (x1,y1) = (content(frame)['pointf'][k][0], content(frame)['pointf'][k][1])
-        (dx,dy) = (x1-x0, y1-y0)
-        result[content(frame)['idx'][k]] = {'x0': x0, 'y0': y0, 'dx': dx, 'dy': dy}
-    for id in ids():
-        if not id in content(frame)['idx']:
-            result[id] = np.nan
-    return result
-
-@functools.cache
-def data (frame, id):
-    ef = extract(frame)
-    if ef:
-        return extract(frame)[id]
-    else:
-        return np.nan
+import data
 
 def locations (id):
     result = []
-    for frame in frames():
-        d = data(frame=frame, id=id)
+    for frame in data.frames():
+        d = data.data(frame=frame, id=id)
         if d is not np.nan:
             (x,y) = (d['x0'],d['y0'])
             result.append((x,y))
@@ -97,7 +36,7 @@ def location (id):
 
 NULL_IDS = []
 NON_NULL_IDS = []
-for id in ids():
+for id in data.ids():
     if (location(id)) is np.nan:
         NULL_IDS.append(id)
     else:
@@ -185,7 +124,7 @@ for kk in range(len(LEFT_IDS)):
 def dxdys_left (frame):
     result = []
     for id in LEFT_IDS:
-        entry = data(frame=frame, id=id)
+        entry = data.data(frame=frame, id=id)
         if entry is np.nan:
             # If `id` is missing from `frame`, assume (dx,dy)=(0,0).
             result.append(0)
@@ -198,7 +137,7 @@ def dxdys_left (frame):
 def dxdys_right (frame):
     result = []
     for id in RIGHT_IDS:
-        entry = data(frame=frame, id=id)
+        entry = data.data(frame=frame, id=id)
         if entry is np.nan:
             # If `id` is missing from `frame`, assume (dx,dy)=(0,0).
             result.append(0)
@@ -209,14 +148,14 @@ def dxdys_right (frame):
     return result
 
 VECTOR_LEFT, VECTOR_RIGHT = [], []
-for frame in frames():
+for frame in data.frames():
     VECTOR_LEFT.append(dxdys_left(frame))
     VECTOR_RIGHT.append(dxdys_right(frame))
 
 def asymmetry (N):
     import json
     print("Analyzing asymmetry for profile:\n.")
-    print(json.dumps(CURRENT_PROFILE, indent=2, default=str))
+    print(json.dumps(data.CURRENT_PROFILE, indent=2, default=str))
     # Excellent tutorial for PCA in python:
     # https://jakevdp.github.io/PythonDataScienceHandbook/05.09-principal-component-analysis.html
     from sklearn.decomposition import PCA
@@ -246,7 +185,7 @@ def asymmetry (N):
     print("Rate of asymmetry is %.5f." % result)
     return result
 
-asymmetry(len(CURRENT_PROFILE['frames']))
+asymmetry(len(data.CURRENT_PROFILE['frames']))
 
 # Note: There's no natural cut-off that dictates if an asymmetry
 # value is too high or not. We need to compare among different
