@@ -152,7 +152,10 @@ for frame in data.frames():
     VECTORS_LEFT.append(dxdys_left(frame))
     VECTORS_RIGHT.append(dxdys_right(frame))
 
-def asymmetry (n_components):
+def asymmetry (vectors_left, vectors_right):
+    assert len(vectors_left)==len(vectors_right)
+    n_components = len(vectors_left)
+    #
     import json
     print("Analyzing asymmetry for profile:\n.")
     print(json.dumps(data.CURRENT_PROFILE, indent=2, default=str))
@@ -161,12 +164,12 @@ def asymmetry (n_components):
     from sklearn.decomposition import PCA
     pca = PCA(n_components=n_components)  # get n_components principle components
     #
-    pca.fit(VECTORS_LEFT)       # ~130 vectors, each having ~600 coordinates.
+    pca.fit(vectors_left)       # ~130 vectors, each having ~600 coordinates.
     left_normalized_components = pca.components_ # get principle components
     left_eigenvalues = list(map(math.sqrt, pca.explained_variance_))
     left_components = list(map(u.scalar_mul, left_eigenvalues, left_normalized_components))
     #
-    pca.fit(VECTORS_RIGHT)       # ~130 vectors, each having ~600 coordinates.
+    pca.fit(vectors_right)       # ~130 vectors, each having ~600 coordinates.
     right_normalized_components = pca.components_ # get principle components
     right_eigenvalues = list(map(math.sqrt, pca.explained_variance_))
     right_components = list(map(u.scalar_mul, right_eigenvalues, right_normalized_components))
@@ -185,7 +188,7 @@ def asymmetry (n_components):
     print("Rate of asymmetry is %.5f." % result)
     return result
 
-asymmetry(len(data.CURRENT_PROFILE['frames']))
+asymmetry(VECTORS_LEFT, VECTORS_RIGHT)
 
 # Note: There's no natural cut-off that dictates if an asymmetry
 # value is too high or not. We need to compare among different
