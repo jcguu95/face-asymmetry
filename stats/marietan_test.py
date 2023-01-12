@@ -33,7 +33,7 @@ y = np.random.rand(100, 1000)
 
 """
 
-k = 3 # This is the order in the spike model.
+_k = 3 # This is the order in the spike model.
 
 # TODO May want to cache this function.
 def ordered_eigens (M):
@@ -53,20 +53,20 @@ def hat_Sigma(X):
 # the following.
 def hat_hat_theta (s, hat_Sigma):
     '''The unbiased estimators of \theta_s; see [5, Def 2.2].'''
-    assert(0<=s<=k)
+    assert(0<=s<=_k)
     m = len(hat_Sigma)
     eigvals = ordered_eigens(hat_Sigma)["eigvals"]
     denom  = 0
-    for i in range(k,m):
+    for i in range(_k,m):
         denom += eigvals[i] / (eigvals[s] - eigvals[i])
-    return 1 + (m-k)/denom
+    return 1 + (m-_k)/denom
 
 def hat_hat_Sigma (hat_Sigma):
     '''The filtered estimated covariance matrix; see [5, Def 2.2].'''
     eigvecs = ordered_eigens(hat_Sigma)["eigvecs"]
     m = len(hat_Sigma)
     result = np.identity(m)
-    for i in range(k):
+    for i in range(_k):
         result = result + hat_hat_theta(i, hat_Sigma) * eigvecs[i].T @ eigvecs[i]
     return result
 
@@ -75,9 +75,9 @@ def M (s1, s2, X, rho):
     m = len(X)
     eigvals = ordered_eigens(hat_Sigma(X))["eigvals"]
     result = 0
-    for i in range(k,m):
+    for i in range(_k,m):
         result += eigvals[i]**s1 / (rho - eigvals[i])**s2
-    return result / (m-k)
+    return result / (m-_k)
 
 def sigma_square (X, rho):
     '''[5. section 2.4, p.6]'''
@@ -98,7 +98,7 @@ def T_1 (X, Y):
     eigvals_X  = ordered_eigens(hat_Sigma(X))["eigvals"]
     eigvals_Y  = ordered_eigens(hat_Sigma(Y))["eigvals"]
     # TODO can be more efficient by avoiding recomputing the eigens of X and Y.
-    for i in range(k):
+    for i in range(_k):
         numer   = (hat_hat_theta(i, hat_Sigma(X)) - hat_hat_theta(i, hat_Sigma(Y)))**2
         denom   = sigma_square(X, eigvals_X[i])   + sigma_square(Y, eigvals_Y[i]) # p.6
         result += numer / denom
@@ -119,7 +119,7 @@ def marietan_T1_test (X, Y):
     the p-value by measuring how far it is from zero.'''
     X       = centralize(X)
     Y       = centralize(Y)
-    a       = k/2
+    a       = _k/2
     b       = np.real(T_1(X,Y)/2)
     p_value = 1 - scipy.special.gammainc(a,b)
     return p_value
