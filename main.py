@@ -1,201 +1,120 @@
-# Usage :: Manually mount
-#   `/media/pawel/disk12T/FaceAnalysis/fm_annot/img/` to `./data/mnt/`
-# with the shell command
-#
-#   sshfs jinchengguu@129.49.109.97:/media/pawel/disk12T/ ./data/mnt
-#
-# and run the following code. The end result is asymmetry(1).
-
-# global modules
-import math
-import pandas as pd
 import numpy as np
-import warnings
-from compose import compose
-# local modules
-import utils as u
-import data
+import math
+import scipy
+import stats.marietan_test
 
-def locations (id):
+# Utils
+def dxdy_frame_concat (dxdy, frame, ids, flip):
     result = []
-    for frame in data.frames():
-        d = data.data(frame=frame, id=id)
-        if d is not np.nan:
-            (x,y) = (d['x0'],d['y0'])
-            result.append((x,y))
-    return set(result)
-
-def location (id):
-    locs = list(locations(id))
-    if len(locs) == 1:
-        return locs[0]
-    elif len(locs) == 0:
-        return np.nan
-    else:
-        warnings.warn("id:{id} has more than one location.".format(id=id))
-
-data.CURRENT_PROFILE["null_ids"] = []
-data.CURRENT_PROFILE["non_null_ids"] = []
-for id in data.ids():
-    if (location(id)) is np.nan:
-        data.CURRENT_PROFILE["null_ids"].append(id)
-    else:
-        data.CURRENT_PROFILE["non_null_ids"].append(id)
-
-def x_mean ():
-    result = 0
-    for id in data.CURRENT_PROFILE["non_null_ids"]:
-        loc = location(id)
-        result += loc[0]/len(data.CURRENT_PROFILE["non_null_ids"])
+    for id in ids:
+        dx = dxdy[frame][id][0]
+        dy = dxdy[frame][id][1]
+        if flip: dx = -dx
+        result += [dx,dy] # concat
     return result
 
-def y_mean ():
-    result = 0
-    for id in data.CURRENT_PROFILE["non_null_ids"]:
-        loc = location(id)
-        result += loc[1]/len(data.CURRENT_PROFILE["non_null_ids"])
-    return result
+def norm (x,y):
+    return math.sqrt(x**2+y**2)
 
-# TODO There's a better way to compute mirror candidates. This is
-# the matching problem which is famously solved by the Hungarian
-# algorithm. It is faster, more robust, and more general than the
-# current method. Implement it in the future. There are python
-# packages out there for this.
-def mirror_candidates (id):
-    '''Returns the id mirrored along the central x-axis. This
-    function should square to identity. (Caveat: But it doesn't!)'''
-    #raise Exception("Not correctly yet implemented.") # TODO To implement.
-    (x, y) = location(id)
-    mirror_point = (2*x_mean() - x, y)
-    def sqr_dist_to_mirror_point (id):
-       (a, b) = location(id)
-       return (a - mirror_point[0])**2 + (b - mirror_point[1])**2
-    tmp_IDS = list(data.CURRENT_PROFILE["non_null_ids"])
-    tmp_IDS.sort(key=sqr_dist_to_mirror_point)
-    return tmp_IDS
+# Stage 1: raw_data => data (points, dxdy)
+def stage_1 ():
+    ## Raw data
+    __pointi=np.load("./data/pointi.npy")
+    # __pointf=np.load("pointf.npy")  # We do not use this file.
+    __dest_x=np.load("./data/dest_x.npy")
+    __dest_y=np.load("./data/dest_y.npy")
+    ## Raw data cleansing
+    frames=range(0,__pointi.shape[0])
+    amount_of_points=__pointi.shape[1]//2
+    __points_from_id={}
+    __points_from_old_id={}
+    __id=0
+    for old_id in range(0,amount_of_points):
+        if not np.isnan(__pointi[0][old_id]):
+            x = __pointi[0][old_id]
+            y = __pointi[0][old_id+amount_of_points]
+            # We assume that each __pointi is constant over different frames.
+            __points_from_id[__id] = ([x,y], old_id)
+            __points_from_old_id[old_id] = ([x,y], __id)
+            __id+=1
+    def effective_old_ids ():
+        return __points_from_old_id.keys()
+    def effective_p (old_id):
+        return old_id in effective_old_ids()
+    # We assume that each __pointi is constant over different frames.
+    def xy (id):
+        return __points_from_id[id][0]
+    def x (id):
+        return xy(id)[0]
+    def y (id):
+        return xy(id)[1]
+    def old_id_of (id):
+        return __points_from_id[id][1]
+    def old_ids ():
+        return range(0,amount_of_points)
+    def ids ():
+        return __points_from_id.keys()
+    __x_mean  = 0
+    for id in ids():
+        __x_mean += x(id)
+    __x_mean = __x_mean / len(ids())
+    __dxdy={}
+    for frame in frames:
+        __dxdy[frame]={}
+        for id in ids():
+            dx = __dest_x[frame][old_id_of(id)]
+            dy = __dest_y[frame][old_id_of(id)]
+            # If dx or dy is missing, treat it as 0.
+            if np.isnan(dx): dx = 0
+            if np.isnan(dy): dy = 0
+            __dxdy[frame][id] = [dx,dy]
+    # ids is the collection of ids. xy is the collection of point
+    # locations: xy(id) is the location of the id. dxdy[id] gives
+    # the vector increment assigned to id.
+    data = [xy, __dxdy, ids(), frames, __x_mean]
+    return data
 
-def mirror (id):
-    return mirror_candidates(id)[0]
+# Stage 2: data => (left_points, right_points)
+def stage_2 (xy, dxdy, ids, frames, x_mean):
+    def x (id):
+        return xy(id)[0]
+    def y (id):
+        return xy(id)[1]
+    def cost (id_0, id_1):
+        x_0_mirrored = 2*x_mean - x(id_0)
+        return norm(x_0_mirrored - x(id_1),
+                    y(id_0)      - y(id_1))
+    cost_matrix = [[cost(id_0,id_1) for id_0 in ids] for id_1 in ids]
+    match = scipy.optimize.linear_sum_assignment(cost_matrix)[1]
+    # TODO Use Hungarian Algorithm to find pairs on the face.
+    def compute_left_right_ids ():
+        left, right = [], []
+        for id in ids:
+            if (id not in left) and (id not in right):
+                if   x(id) < x(match[id]):
+                    left_id  = id
+                    right_id = match[id]
+                elif x(id) >= x(match[id]):
+                    left_id  = match[id]
+                    right_id = id
+                left.append(left_id)
+                right.append(right_id)
+        return (left, right)
+    left_ids, right_ids = compute_left_right_ids()
+    assert len(left_ids)==len(right_ids), "Something is wrong."
+    return left_ids, right_ids
 
-def stability (id):
-    '''Return the least n such that mirror^n(id)==mirror^(n+2)(id).'''
-    result = 0
-    point = id
-    while point != mirror(mirror(point)):
-        result += 1
-        point = mirror(point)
-    return result
+def stage_3 (left_ids, right_ids, dxdy, frames):
+    L, R = [], []
+    for frame in frames:
+        L.append(dxdy_frame_concat(dxdy, frame,  left_ids, False))
+        R.append(dxdy_frame_concat(dxdy, frame, right_ids, True))
+    return (L, R)
 
-# As the data points are not symmetrically distributed, the
-# function mirror is not an idempotent. Therefore, we create an
-# idempotent dictionary adhocally mirror_dict[].
-#
-## Initialization
-data.CURRENT_PROFILE["mirror_dict"] = {}
-for id in data.CURRENT_PROFILE["non_null_ids"]:
-    data.CURRENT_PROFILE["mirror_dict"][id] = ''
+# Computations
+[_xy, _dxdy, _ids, _frames, _x_mean] = stage_1()
+_left_ids, _right_ids                = stage_2(_xy, _dxdy, _ids, _frames, _x_mean)
+_L, _R                               = stage_3(_left_ids, _right_ids, _dxdy, _frames)
 
-## Popularization.
-for id in data.CURRENT_PROFILE["non_null_ids"]:
-    if data.CURRENT_PROFILE["mirror_dict"][id] == '':
-        cands = mirror_candidates(id)
-        for k in range(len(data.CURRENT_PROFILE["non_null_ids"])):
-            if data.CURRENT_PROFILE["mirror_dict"][cands[k]] == '':
-                data.CURRENT_PROFILE["mirror_dict"][id] = cands[k]
-                data.CURRENT_PROFILE["mirror_dict"][cands[k]] = id
-                break
-
-data.CURRENT_PROFILE['left_ids'] = []
-data.CURRENT_PROFILE['right_ids'] = []
-for id in data.CURRENT_PROFILE["non_null_ids"]:
-    if location(id)[0] <= x_mean():
-        data.CURRENT_PROFILE['left_ids'].append(id)
-        data.CURRENT_PROFILE['right_ids'].append(data.CURRENT_PROFILE["mirror_dict"][id])
-
-assert(len(data.CURRENT_PROFILE['left_ids']) == \
-       len(data.CURRENT_PROFILE['right_ids']))
-
-for kk in range(len(data.CURRENT_PROFILE['left_ids'])):
-    # Make sure that the order in LEFT_IDS and RIGHT_IDS respect
-    # MIRROR_DICT[_].
-    assert(data.CURRENT_PROFILE["mirror_dict"][data.CURRENT_PROFILE['left_ids'][kk]] == data.CURRENT_PROFILE['right_ids'][kk])
-
-def dxdys_left (frame):
-    result = []
-    for id in data.CURRENT_PROFILE['left_ids']:
-        entry = data.data(frame=frame, id=id)
-        if entry is np.nan:
-            # If `id` is missing from `frame`, assume (dx,dy)=(0,0).
-            result.append(0)
-            result.append(0)
-        else:
-            result.append(entry['dx'])
-            result.append(entry['dy'])
-    return result
-
-def dxdys_right (frame):
-    result = []
-    for id in data.CURRENT_PROFILE['right_ids']:
-        entry = data.data(frame=frame, id=id)
-        if entry is np.nan:
-            # If `id` is missing from `frame`, assume (dx,dy)=(0,0).
-            result.append(0)
-            result.append(0)
-        else:
-            result.append(-entry['dx']) # flip dx to be compare with mirror point
-            result.append(entry['dy'])
-    return result
-
-data.CURRENT_PROFILE['vectors_left'] = []
-data.CURRENT_PROFILE['vectors_right'] = []
-for frame in data.frames():
-    data.CURRENT_PROFILE['vectors_left'].append(dxdys_left(frame))
-    data.CURRENT_PROFILE['vectors_right'].append(dxdys_right(frame))
-
-def asymmetry (vectors_left, vectors_right):
-    assert len(vectors_left)==len(vectors_right)
-    n_components = len(vectors_left)
-    #
-    import json
-    print("Analyzing asymmetry for profile:\n.")
-    print(json.dumps(data.CURRENT_PROFILE["name"], indent=2, default=str))
-    print(json.dumps(data.CURRENT_PROFILE["doc"], indent=2, default=str))
-    print(json.dumps(data.CURRENT_PROFILE["ids"], indent=2, default=str))
-    print(json.dumps(data.CURRENT_PROFILE["frames"], indent=2, default=str))
-    # Excellent tutorial for PCA in python:
-    # https://jakevdp.github.io/PythonDataScienceHandbook/05.09-principal-component-analysis.html
-    from sklearn.decomposition import PCA
-    pca = PCA(n_components=n_components)  # get n_components principle components
-    #
-    pca.fit(vectors_left)       # ~130 vectors, each having ~600 coordinates.
-    left_normalized_components = pca.components_ # get principle components
-    left_eigenvalues = list(map(math.sqrt, pca.explained_variance_))
-    left_components = list(map(u.scalar_mul, left_eigenvalues, left_normalized_components))
-    #
-    pca.fit(vectors_right)       # ~130 vectors, each having ~600 coordinates.
-    right_normalized_components = pca.components_ # get principle components
-    right_eigenvalues = list(map(math.sqrt, pca.explained_variance_))
-    right_components = list(map(u.scalar_mul, right_eigenvalues, right_normalized_components))
-    #
-    angle_diffs = list(map(u.angle_diff, left_components, right_components))
-    distances   = list(map(compose(u.distance, u.vect_minus), left_components, right_components))
-    length_ratios = list(map((lambda x,y: x/y), left_eigenvalues, right_eigenvalues))
-    df = pd.DataFrame([left_eigenvalues, right_eigenvalues, angle_diffs, distances, length_ratios], \
-                      index = ['left eigenvalues', 'right eigenvalues', \
-                               'angle difference', 'distance', 'length ratio']).transpose()
-    print(df)
-    result = 0
-    for k in range(n_components):
-        result += (left_eigenvalues[k]+right_eigenvalues[k])/2 * distances[k]
-    result = result / (n_components * (left_eigenvalues[0]+right_eigenvalues[0])/2)
-    print("Rate of asymmetry is %.5f." % result)
-    return result
-
-asymmetry(data.CURRENT_PROFILE['vectors_left'], \
-          data.CURRENT_PROFILE['vectors_right'])
-
-# Note: There's no natural cut-off that dictates if an asymmetry
-# value is too high or not. We need to compare among different
-# data after all. When we compare, we have to make the number of
-# frames the same. It is not clear in general how the asymmetry
-# grows as the number of frames grow.
+# Result
+print("p value is", stats.marietan_test.marietan_T1_test(_L,_R))
