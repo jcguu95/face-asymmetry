@@ -26,16 +26,6 @@ vectors corresponding to any given frame and id, `ids` records
 the available ids, `frames` gathers the available frames, and
 `x_mean` denotes the average x-coordinate value of all the points.
 
-In the second stage (see `stage_2()`), the main goal is to obtain
-a matching between the points on the left-half of the face and
-the points on the right-half of the face. We use Hungarian
-algorithm to achieve this. The outputs of `stage_2` are two lists
-`_left_ids` and `_right_ids`. The first list encodes the ids that
-belong to the left-half of the face, while the second does so for
-the ids that belong to the right-half of the face. That means
-`_left_ids[j]` is always on the left-half of the face, and its
-best mirrored point is `_right_ids[j]`.
-
 Subsequently, in the second stage (refer to `stage_2()`), the
 primary objective is to establish a correspondence between the
 left and right half points of the face. This is accomplished
